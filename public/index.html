@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>API Playground</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<aside class="rail">
+  <h1 class="brand">API Playground</h1>
+  <div class="progress" id="progress" role="status">
+    <span id="progress-text">Loading challenges</span>
+    <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+  </div>
+  <button class="free" id="free-request" type="button">Write your own request</button>
+  <nav id="tracks" aria-label="Challenges"></nav>
+  <div class="rail-foot">
+    <a href="/docs" target="_blank" rel="noopener">Swagger docs</a>
+    <button type="button" id="reset-data">Reset data</button>
+    <button type="button" id="reset-all">Clear progress</button>
+  </div>
+</aside>
+
+<main class="bench">
+  <section class="brief" aria-live="polite">
+    <div class="brief-head">
+      <h2 id="brief-title"></h2>
+      <span id="brief-state" class="state"></span>
+    </div>
+    <p id="brief-task"></p>
+    <details id="brief-hint-wrap"><summary>Show a hint</summary><p id="brief-hint"></p></details>
+    <div class="steps-row" id="steps-row" hidden>
+      <ol class="steps" id="steps"></ol>
+      <button type="button" id="run-all" class="ghost">Run all steps</button>
+    </div>
+  </section>
+
+  <div class="panes">
+    <section class="pane" aria-label="Request">
+      <form id="request-form">
+        <div class="url-row">
+          <label class="sr" for="method">Method</label>
+          <select id="method">
+            <option>GET</option><option>POST</option><option>PUT</option><option>PATCH</option><option>DELETE</option><option>HEAD</option><option>OPTIONS</option>
+          </select>
+          <label class="sr" for="url">Path</label>
+          <input id="url" spellcheck="false" autocomplete="off">
+        </div>
+        <label for="headers">Headers, one per line</label>
+        <textarea id="headers" rows="5" spellcheck="false" placeholder="X-API-Key: {{apiKey}}"></textarea>
+        <label for="body">Body</label>
+        <textarea id="body" rows="13" spellcheck="false"></textarea>
+        <div class="actions">
+          <button type="submit" class="primary" id="send">Send</button>
+          <button type="button" class="ghost" id="send-twice">Send twice at once</button>
+          <button type="button" class="ghost" id="copy-curl">Copy as cURL</button>
+        </div>
+      </form>
+      <details class="vars">
+        <summary>Variables</summary>
+        <p>Write these in the path, headers or body. They are filled in when you send.</p>
+        <dl id="vars"></dl>
+        <button type="button" class="ghost small" id="new-key">New idempotency key</button>
+      </details>
+    </section>
+
+    <section class="pane response" aria-label="Response" id="response">
+      <div class="readout" id="readout">
+        <p class="waiting" id="waiting">Send a request to see the response.</p>
+      </div>
+      <div class="tabs" role="tablist" id="tabs" hidden>
+        <button type="button" role="tab" id="tab-body" aria-selected="true">Body</button>
+        <button type="button" role="tab" id="tab-headers" aria-selected="false">Headers</button>
+      </div>
+      <pre class="output" id="output" tabindex="0" hidden></pre>
+    </section>
+  </div>
+</main>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="app.js"></script>
+</body>
+</html>
