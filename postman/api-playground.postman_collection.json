@@ -16,6 +16,5591 @@
   ],
   "item": [
     {
+      "name": "Banking end to end",
+      "item": [
+        {
+          "name": "Run the full banking journey",
+          "description": "Automate the whole flow: register, sign in with a code, pass KYC, open two accounts, deposit, add and activate a beneficiary, transfer, then reconcile. Assert opening + credits - debits = closing on the statement.\n\nHint: Register with a new email on every run. Save values from each response, such as accessToken, account id and beneficiary id, for the next call. DELETE /api/bank/me cleans up afterwards.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"transferId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check the transfer",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers/{{transferId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers",
+                    "{{transferId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check the balance",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/balance",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "balance"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "List the transactions",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/transactions?type=DEBIT",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "DEBIT"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Get the statement",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/statement",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "statement"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Open an account before KYC",
+          "description": "Try to open an account without passing KYC. Assert 403 KYC_REQUIRED and that no account was created.\n\nHint: Business rules are often missed because tests only follow the correct order of steps.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Try to open an account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 403', () => pm.expect([403]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Handle a rejected KYC",
+          "description": "Submit a PAN starting with REJ. Poll until the status is REJECTED, and assert the reason. Then check an account still cannot be opened.\n\nHint: KYC is checked in the background, so poll with a timeout instead of a fixed wait. Use made-up PANs only.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"REJCT1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Lock an account with wrong passwords",
+          "description": "Sign in with a wrong password 5 times. Assert the 5th returns 423 with Retry-After, and that the correct password is also refused while locked.\n\nHint: A wrong password and an unknown email return the same error, so attackers cannot discover who is registered.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in with the wrong password (1 of 5)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"WrongPassword1\"\n}"
+                }
+              },
+              "event": []
+            },
+            {
+              "name": "Sign in with the wrong password (2 of 5)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"WrongPassword1\"\n}"
+                }
+              },
+              "event": []
+            },
+            {
+              "name": "Sign in with the wrong password (3 of 5)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"WrongPassword1\"\n}"
+                }
+              },
+              "event": []
+            },
+            {
+              "name": "Sign in with the wrong password (4 of 5)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"WrongPassword1\"\n}"
+                }
+              },
+              "event": []
+            },
+            {
+              "name": "Sign in with the wrong password (5 of 5)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"WrongPassword1\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 423', () => pm.expect([423]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Reuse a refresh token",
+          "description": "Refresh your token, then send the old refresh token again. Assert 401 REFRESH_TOKEN_REUSED, and that the access token from this sign-in stops working.\n\nHint: Refresh tokens work once. A reused token suggests theft, so the whole sign-in is ended.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Refresh the token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/refresh",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "refresh"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Reuse the old token",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/refresh",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "refresh"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 401', () => pm.expect([401]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Try the access token",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/me",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "me"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 401', () => pm.expect([401]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Read another customer's account",
+          "description": "As customer B, request customer A's account. Assert 404, identical to an id that doesn't exist. This is the most common serious API security bug, called BOLA or IDOR.\n\nHint: Try the same with transfers, beneficiaries and statements. Account ids are sequential, so they are easy to guess.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Register a second customer",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}-b@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}-b@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Read customer A's account as B",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 404', () => pm.expect([404]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Pay an unactivated beneficiary",
+          "description": "Add a beneficiary, skip activation, and send money. Assert 409 BENEFICIARY_NOT_ACTIVE and an unchanged balance.\n\nHint: Three wrong activation codes remove the beneficiary. Test that as well.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 409', () => pm.expect([409]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Send a transfer twice, debit once",
+          "description": "Send one transfer twice with the same Idempotency-Key. Assert the same transfer id, Idempotent-Replayed: true, and a single debit.\n\nHint: Now change the amount with that key and expect 422. Add a test that sends both requests in parallel.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send it again",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.test('Header idempotent-replayed', () => pm.expect(pm.response.headers.get(\"idempotent-replayed\")).to.eql(\"true\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Confirm one debit",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/transactions?type=DEBIT",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "DEBIT"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Send more than the balance",
+          "description": "Send more than the account holds. Assert 422 INSUFFICIENT_FUNDS, the available amount in details, and an unchanged balance.\n\nHint: Test the boundaries too: exactly the balance should pass, and one paisa more should fail.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.expect([422]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Approve a large transfer with a code",
+          "description": "Transfers above 50,000 rupees need a code. Assert 202 PENDING_OTP with no debit yet, confirm with the code, then confirm again. The second must return 409 with no second debit.\n\nHint: Exactly 50,000 rupees needs no code, and one paisa more does. Three wrong codes cancel the transfer.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 6000000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"transferId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"transferOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Confirm with the code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers/{{transferId}}/confirm",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers",
+                    "{{transferId}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{transferOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Confirm again",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers/{{transferId}}/confirm",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers",
+                    "{{transferId}}",
+                    "confirm"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{transferOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 409', () => pm.expect([409]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Follow a failed transfer to its refund",
+          "description": "Send NEFT to an outside account ending in 0000. It starts as PROCESSING with the money taken, then becomes REVERSED. Assert the refund appears and the balance is back to where it started.\n\nHint: The first response looks successful. Only polling shows the real outcome.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"123456780000\",\n  \"ifsc\": \"HDFC0001234\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with NEFT",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"NEFT\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"transferId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Poll until it finishes",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers/{{transferId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers",
+                    "{{transferId}}"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 2000);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Find the refund",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/transactions?category=REVERSAL",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "transactions"
+                  ],
+                  "query": [
+                    {
+                      "key": "category",
+                      "value": "REVERSAL"
+                    }
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Send from a frozen account",
+          "description": "Freeze the account, try a transfer and assert 409 ACCOUNT_FROZEN. Unfreeze it, and check the transfer now works with a new key.\n\nHint: Deposits into a frozen account still work. Only money leaving it is blocked.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Freeze the account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/freeze",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "freeze"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 409', () => pm.expect([409]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "Go over the daily limit",
+          "description": "Lower the daily limit, then send more than it allows. Assert 422 DAILY_LIMIT_EXCEEDED, with the limit and amount spent in details.\n\nHint: RTGS needs at least 2 lakh rupees and IMPS allows at most 5 lakh. Test those boundaries too.",
+          "item": [
+            {
+              "name": "Register",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/register",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "register"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fullName\": \"Asha Practice\",\n  \"email\": \"{{idemKey}}@example.test\",\n  \"phone\": \"+919800000001\",\n  \"password\": \"Practice123\",\n  \"dateOfBirth\": \"1995-06-15\",\n  \"address\": {\n    \"line1\": \"1 Test Lane\",\n    \"city\": \"Pune\",\n    \"state\": \"MH\",\n    \"pincode\": \"411001\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.collectionVariables.set('idemKey', 'pm-' + pm.variables.replaceIn('{{$guid}}'));"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sign in",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/login",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "login"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{idemKey}}@example.test\",\n  \"password\": \"Practice123\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"mfaToken\", pm.response.json()[\"mfaToken\"]);",
+                      "pm.collectionVariables.set(\"loginOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Enter the sign-in code",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/auth/otp/verify",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "auth",
+                    "otp",
+                    "verify"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"mfaToken\": \"{{mfaToken}}\",\n  \"otp\": \"{{loginOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"token\", pm.response.json()[\"accessToken\"]);",
+                      "pm.collectionVariables.set(\"refreshToken\", pm.response.json()[\"refreshToken\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Submit KYC",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"documents\": [\n    {\n      \"type\": \"PAN\",\n      \"number\": \"ABCDE1234F\"\n    }\n  ]\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 202', () => pm.expect([202]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Check KYC status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/kyc",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "kyc"
+                  ]
+                }
+              },
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "setTimeout(() => {}, 1200);"
+                    ]
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a savings account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"SAVINGS\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"accountId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"accountNumber\", pm.response.json()[\"accountNumber\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Deposit money",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-dep"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/deposits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "deposits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amount\": {\n    \"value\": 10000000,\n    \"currency\": \"INR\"\n  }\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Open a second account",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"type\": \"CURRENT\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"secondAccountNumber\", pm.response.json()[\"accountNumber\"]);",
+                      "pm.collectionVariables.set(\"secondAccountId\", pm.response.json()[\"id\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Add a beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Practice\",\n  \"nickname\": \"Ravi\",\n  \"accountNumber\": \"{{secondAccountNumber}}\",\n  \"ifsc\": \"PLAY0000001\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 201', () => pm.expect([201]).to.include(pm.response.code));",
+                      "pm.collectionVariables.set(\"beneficiaryId\", pm.response.json()[\"id\"]);",
+                      "pm.collectionVariables.set(\"beneficiaryOtp\", pm.response.json()[\"devOtp\"]);"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Activate the beneficiary",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/beneficiaries/{{beneficiaryId}}/activate",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "beneficiaries",
+                    "{{beneficiaryId}}",
+                    "activate"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"otp\": \"{{beneficiaryOtp}}\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Lower the daily limit",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/accounts/{{accountId}}/limits",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "accounts",
+                    "{{accountId}}",
+                    "limits"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"dailyTransferLimit\": 50000\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 200', () => pm.expect([200]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Send with IMPS",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{token}}"
+                  },
+                  {
+                    "key": "Idempotency-Key",
+                    "value": "{{idemKey}}-trf"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/bank/transfers",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "bank",
+                    "transfers"
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"fromAccountId\": \"{{accountId}}\",\n  \"beneficiaryId\": \"{{beneficiaryId}}\",\n  \"amount\": {\n    \"value\": 100000,\n    \"currency\": \"INR\"\n  },\n  \"mode\": \"IMPS\",\n  \"remarks\": \"Practice transfer\"\n}"
+                }
+              },
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status is 422', () => pm.expect([422]).to.include(pm.response.code));"
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "Sign-in and roles",
       "item": [
         {

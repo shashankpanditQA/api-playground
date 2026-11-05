@@ -149,6 +149,7 @@ module.exports = {
   USERS,
   ApiError,
   signJwt,
+  verifyJwt,
   safeEqual,
   authenticate,
   requireRole,

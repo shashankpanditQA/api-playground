@@ -59,6 +59,7 @@ const FAIL = 'Failures and retries';
 const COMPLEX = 'Complex JSON';
 
 module.exports = [
+  ...require('./bankChallenges'),
   challenge('auth-login', AUTH, 'Easy', 'Sign in and get a token',
     'Sign in as tester. Assert the response has accessToken, tokenType Bearer and a Cache-Control: no-store header.',
     'The token is a real JWT. Decode the middle part to read its role and expiry.',

@@ -55,6 +55,73 @@ const paymentErrors = {
   504: 'tok_timeout_after_charge: money moved, client sees a timeout',
 };
 
+const bank = (summary, options = {}) => {
+  const operation = op('Banking', summary, options);
+  operation.security = [{ Bearer: [] }];
+  return operation;
+};
+const open = (summary, options = {}) => op('Banking', summary, options);
+const accountParam = param('id', 'path', 'ACT-000001', 'Account id');
+const idParam = (example, text) => param('id', 'path', example, text);
+const bankKey = param('Idempotency-Key', 'header', 'practice-key-0001', 'Unique per money movement. Reuse it only when retrying the same one.', true);
+const bankPaths = {
+  '/api/bank/auth/register': { post: open('1. Register a customer', {
+    description: 'Use made-up details only. This is a public practice server. Each customer only sees their own data.',
+    body: { fullName: 'Asha Practice', email: 'asha.practice1@example.test', phone: '+919800000001', password: 'Practice123', dateOfBirth: '1995-06-15', address: { line1: '1 Test Lane', city: 'Pune', state: 'MH', pincode: '411001' } },
+    responses: { 201: 'Registered', 409: 'Email already registered', 422: 'Invalid fields, with exact paths' },
+  }) },
+  '/api/bank/auth/login': { post: open('2. Sign in with email and password', {
+    description: 'Returns mfaToken and devOtp. Five wrong passwords lock the customer for 60 seconds.',
+    body: { email: 'asha.practice1@example.test', password: 'Practice123' },
+    responses: { 200: 'Code issued', 401: 'Wrong email or password', 423: 'Locked, with Retry-After' },
+  }) },
+  '/api/bank/auth/otp/verify': { post: open('3. Enter the sign-in code', { body: { mfaToken: '<from login>', otp: '<devOtp from login>' }, responses: { 200: 'accessToken and refreshToken', 401: 'Wrong or expired code' } }) },
+  '/api/bank/auth/refresh': { post: open('Swap a refresh token for new tokens', { description: 'Each refresh token works once. Reusing one ends the sign-in.', body: { refreshToken: '<refreshToken>' }, responses: { 200: 'New tokens', 401: 'Invalid or reused' } }) },
+  '/api/bank/auth/logout': { post: bank('Sign out', { responses: { 204: 'Signed out', 401: 'Not signed in' } }) },
+  '/api/bank/me': {
+    get: bank('Get my profile', { responses: { 200: 'Profile', 401: 'Not signed in' } }),
+    patch: bank('Update my profile (merge patch)', { bodyType: 'application/merge-patch+json', body: { address: { city: 'Mumbai' } }, responses: { 200: 'Updated', 422: 'Invalid or read-only field' } }),
+    delete: bank('Delete me and all my data (test clean-up)', { responses: { 204: 'Deleted' } }),
+  },
+  '/api/bank/kyc': {
+    post: bank('4. Submit KYC', { description: 'Use a made-up PAN. One starting with REJ is rejected.', body: { documents: [{ type: 'PAN', number: 'ABCDE1234F' }] }, responses: { 202: 'PENDING', 409: 'Already submitted', 422: 'Invalid' } }),
+    get: bank('Poll KYC status', { responses: { 200: 'PENDING, VERIFIED or REJECTED' } }),
+  },
+  '/api/bank/accounts': {
+    post: bank('5. Open an account', { body: { type: 'SAVINGS' }, responses: { 201: 'Opened', 403: 'KYC not verified', 422: 'Invalid' } }),
+    get: bank('List my accounts'),
+  },
+  '/api/bank/accounts/{id}': { get: bank('Get an account', { params: [accountParam], responses: { 200: 'The account', 404: 'Not found, or not yours' } }) },
+  '/api/bank/accounts/{id}/balance': { get: bank('Get a balance', { params: [accountParam], responses: { 200: 'Balance in paise', 404: 'Not found, or not yours' } }) },
+  '/api/bank/accounts/{id}/limits': { patch: bank('Change the daily limit', { params: [accountParam], body: { dailyTransferLimit: 50000 }, responses: { 200: 'Updated', 422: 'Invalid' } }) },
+  '/api/bank/accounts/{id}/freeze': { post: bank('Freeze an account', { params: [accountParam], responses: { 200: 'Frozen', 409: 'Wrong state' } }) },
+  '/api/bank/accounts/{id}/unfreeze': { post: bank('Unfreeze an account', { params: [accountParam], responses: { 200: 'Active', 409: 'Wrong state' } }) },
+  '/api/bank/accounts/{id}/close': { post: bank('Close an account', { params: [accountParam], responses: { 200: 'Closed', 409: 'Balance is not zero' } }) },
+  '/api/bank/accounts/{id}/deposits': { post: bank('6. Deposit practice money', { params: [accountParam, bankKey], body: { amount: { value: 10000000, currency: 'INR' } }, responses: { 201: 'Deposited', 400: 'Key missing', 409: 'In progress or account closed', 422: 'Invalid' } }) },
+  '/api/bank/accounts/{id}/transactions': { get: bank('List transactions', { params: [accountParam, param('type', 'query', 'DEBIT', 'CREDIT or DEBIT', false), param('category', 'query', undefined, 'DEPOSIT, TRANSFER_OUT, TRANSFER_IN or REVERSAL', false), param('minAmount', 'query', undefined, 'In paise', false), param('maxAmount', 'query', undefined, 'In paise', false), param('page', 'query', '1', 'Page', false), param('limit', 'query', '20', '1 to 100', false)] }) },
+  '/api/bank/accounts/{id}/statement': { get: bank('9. Get a statement', { description: 'Set Accept: text/csv for CSV. Opening + credits - debits = closing.', params: [accountParam, param('from', 'query', undefined, 'YYYY-MM-DD', false), param('to', 'query', undefined, 'YYYY-MM-DD', false)], responses: { 200: 'The statement', 400: 'Invalid dates', 404: 'Not found, or not yours' } }) },
+  '/api/bank/beneficiaries': {
+    post: bank('7. Add a beneficiary', { description: 'Use IFSC PLAY0000001 for an account at this bank. For outside accounts, any valid IFSC works, and a number ending in 0000 fails at settlement.', body: { name: 'Ravi Practice', nickname: 'Ravi', accountNumber: '123456781234', ifsc: 'HDFC0001234' }, responses: { 201: 'Added, with devOtp', 409: 'Already added', 422: 'Invalid' } }),
+    get: bank('List my beneficiaries'),
+  },
+  '/api/bank/beneficiaries/{id}': {
+    get: bank('Get a beneficiary', { params: [idParam('BEN-000001', 'Beneficiary id')], responses: { 200: 'The beneficiary', 404: 'Not found' } }),
+    delete: bank('Remove a beneficiary', { params: [idParam('BEN-000001', 'Beneficiary id')], responses: { 204: 'Removed', 404: 'Not found' } }),
+  },
+  '/api/bank/beneficiaries/{id}/activate': { post: bank('Activate with the code', { params: [idParam('BEN-000001', 'Beneficiary id')], body: { otp: '<devOtp>' }, responses: { 200: 'Active', 401: 'Wrong code', 409: 'Already active' } }) },
+  '/api/bank/transfers': {
+    post: bank('8. Send money', {
+      description: 'INTERNAL and IMPS settle at once. NEFT and RTGS return PROCESSING, so poll them. Above 50,000 rupees needs a code. RTGS minimum 2 lakh, IMPS maximum 5 lakh, default daily limit 10 lakh.',
+      params: [bankKey],
+      body: { fromAccountId: 'ACT-000001', beneficiaryId: 'BEN-000001', amount: { value: 100000, currency: 'INR' }, mode: 'IMPS', remarks: 'Rent' },
+      responses: { 201: 'Settled or reversed', 202: 'PROCESSING or PENDING_OTP', 400: 'Key missing', 404: 'Account or beneficiary not found', 409: 'Frozen, closed, inactive beneficiary, or in progress', 422: 'Invalid, insufficient funds, or over a limit' },
+    }),
+    get: bank('List my transfers', { params: [param('status', 'query', undefined, 'PENDING_OTP, PROCESSING, SETTLED, REVERSED or FAILED', false), param('accountId', 'query', undefined, 'Source account', false)] }),
+  },
+  '/api/bank/transfers/{id}': { get: bank('Get a transfer', { params: [idParam('TRF-000001', 'Transfer id')], responses: { 200: 'The transfer', 404: 'Not found' } }) },
+  '/api/bank/transfers/{id}/confirm': { post: bank('Approve a large transfer', { params: [idParam('TRF-000001', 'Transfer id')], body: { otp: '<devOtp>' }, responses: { 200: 'Settled', 202: 'Processing', 401: 'Wrong code', 409: 'Not waiting for a code', 422: 'Funds or limits changed' } }) },
+};
+
 module.exports = {
   openapi: '3.0.3',
   info: {
@@ -65,6 +132,7 @@ module.exports = {
   },
   servers: [{ url: '/' }],
   tags: [
+    { name: 'Banking', description: 'A full banking flow. Follow the numbered steps. Tap Authorize and paste your accessToken into Bearer.' },
     { name: 'Auth' },
     { name: 'Headers' },
     { name: 'Orders', description: 'Deeply nested JSON' },
@@ -99,6 +167,7 @@ module.exports = {
     },
   },
   paths: {
+    ...bankPaths,
     '/health': { get: op('Admin', 'Health check') },
     '/api/admin/reset': {
       post: op('Admin', 'Restore starting data', { params: [param('progress', 'query', 'false', 'true also clears challenge progress', false)] }),

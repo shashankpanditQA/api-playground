@@ -14,6 +14,7 @@ const { payments, accounts, idempotencyKeys } = require('./routes/payments');
 const { mockAdmin, mockServe } = require('./routes/mocks');
 const { simulate, jobs } = require('./routes/simulate');
 const complexRoutes = require('./routes/complex');
+const bankRoutes = require('./routes/bank');
 
 /** Limits that only apply when the app runs on a public URL. */
 function publicGuard() {
@@ -35,7 +36,9 @@ function publicGuard() {
       }));
     }
     const stored = state.payments.size + state.orders.size + state.idempotency.size + state.flaky.size + state.rateLimits.size + state.jobs.size;
-    if (stored > Number(process.env.PUBLIC_MAX_RECORDS || 2000)) resetData();
+    const { bank } = state;
+    const bankStored = bank.customers.size + bank.accounts.size + bank.transfers.size + bank.transactions.length + bank.refresh.size + bank.mfa.size + bank.idempotency.size;
+    if (stored > Number(process.env.PUBLIC_MAX_RECORDS || 2000) || bankStored > 50000) resetData();
     return next();
   };
 }
@@ -95,6 +98,7 @@ function createApp() {
   app.use('/api/simulate', simulate);
   app.use('/api/jobs', jobs);
   app.use('/api/complex', complexRoutes);
+  app.use('/api/bank', bankRoutes);
 
   app.get('/api/challenges', (req, res) => {
     const data = challenges.map((c) => ({ ...c, completedAt: progress[c.id] || null }));

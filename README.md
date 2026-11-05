@@ -1,6 +1,6 @@
 # API Playground
 
-A practice API for testers, running on your own computer. It has 36 challenges that tick off automatically when your real requests trigger the right behaviour.
+A practice API for testers, running on your own computer. It has 49 challenges that tick off automatically when your real requests trigger the right behaviour.
 
 ## Start it
 
@@ -46,6 +46,36 @@ Everyone using the address shares the same data and challenge progress, and anyo
 These are practice credentials. Keep the server on your own machine: it binds to `127.0.0.1` by default.
 
 ## What you can practise
+
+### Banking, end to end
+
+Live at `/api/bank`. Register your own customer, and only you can see that customer's data. **Use made-up details only, never your real password, PAN or personal information.** Data is deleted whenever the server restarts.
+
+| Step | Call | Notes |
+| --- | --- | --- |
+| 1 | `POST /auth/register` | Use a new email on every run |
+| 2 | `POST /auth/login` | Returns `mfaToken` and `devOtp` |
+| 3 | `POST /auth/otp/verify` | Returns `accessToken` (15 minutes) and `refreshToken` |
+| 4 | `POST /kyc`, then poll `GET /kyc` | A PAN starting with `REJ` is rejected |
+| 5 | `POST /accounts` | Blocked until KYC is `VERIFIED` |
+| 6 | `POST /accounts/{id}/deposits` | Practice money. Needs `Idempotency-Key` |
+| 7 | `POST /beneficiaries`, then `POST /beneficiaries/{id}/activate` | Needs the code returned as `devOtp` |
+| 8 | `POST /transfers` | Needs `Idempotency-Key` |
+| 9 | `GET /accounts/{id}/statement` | JSON, or CSV with `Accept: text/csv` |
+| Clean up | `DELETE /me` | Removes the customer and their data |
+
+Amounts are whole paise, so `100000` means 1,000 rupees.
+
+| Rule | Behaviour |
+| --- | --- |
+| `INTERNAL`, `IMPS` | Settle at once. `IMPS` maximum is 5 lakh rupees |
+| `NEFT`, `RTGS` | Return `PROCESSING`, then settle in about 2 seconds. `RTGS` minimum is 2 lakh rupees |
+| Above 50,000 rupees | Returns `PENDING_OTP`. Approve with `POST /transfers/{id}/confirm` |
+| Daily limit | 10 lakh rupees per account by default. Lower it with `PATCH /accounts/{id}/limits` |
+| Outside account ending `0000` | Becomes `REVERSED`, and the money is refunded |
+| At this bank | Use IFSC `PLAY0000001` |
+| 5 wrong passwords | `423` for 60 seconds |
+| Another customer's data | `404` |
 
 ### Double-payment protection
 

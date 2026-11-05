@@ -211,6 +211,22 @@ function resetData() {
   state.batches = 0;
   state.driftCalls = 0;
   state.lastUnsafe = null;
+  state.bank = {
+    seq: {},
+    customers: new Map(),
+    emails: new Map(),
+    mfa: new Map(),
+    refresh: new Map(),
+    revokedFamilies: new Set(),
+    accounts: new Map(),
+    accountNumbers: new Map(),
+    beneficiaries: new Map(),
+    beneficiaryOtps: new Map(),
+    transfers: new Map(),
+    transferOtps: new Map(),
+    transactions: [],
+    idempotency: new Map(),
+  };
 }
 
 resetData();
